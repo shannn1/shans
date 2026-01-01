@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shan's</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 首页 -->
+    <div id="homePage" class="page active">
+        <div class="container">
+            <header class="main-header">
+                <h1 class="site-title">Shan's</h1>
+                <p class="site-subtitle">记录阅读、观影与旅行的时光</p>
+            </header>
+
+            <nav class="tabs">
+                <button class="tab-btn active" data-tab="books" onclick="switchTab('books')">
+                    <span class="tab-icon">📚</span>
+                    <span class="tab-text">读书记录</span>
+                </button>
+                <button class="tab-btn" data-tab="movies" onclick="switchTab('movies')">
+                    <span class="tab-icon">🎬</span>
+                    <span class="tab-text">观影记录</span>
+                </button>
+                <button class="tab-btn" data-tab="travels" onclick="switchTab('travels')">
+                    <span class="tab-icon">✈️</span>
+                    <span class="tab-text">旅行见闻</span>
+                </button>
+            </nav>
+
+            <!-- 读书记录内容 -->
+            <div id="booksContent" class="tab-content active">
+                <div class="content-header">
+                    <h2 class="content-title">读书记录</h2>
+                    <button class="add-btn" onclick="openBookModal()">
+                        <span>+</span>
+                    </button>
+                </div>
+                <div class="records-list" id="booksList">
+                    <!-- 书籍记录将动态添加到这里 -->
+                </div>
+            </div>
+
+            <!-- 观影记录内容 -->
+            <div id="moviesContent" class="tab-content">
+                <div class="content-header">
+                    <h2 class="content-title">观影记录</h2>
+                    <button class="add-btn" onclick="openMovieModal()">
+                        <span>+</span>
+                    </button>
+                </div>
+                <div class="records-list" id="moviesList">
+                    <!-- 电影记录将动态添加到这里 -->
+                </div>
+            </div>
+
+            <!-- 旅行见闻内容 -->
+            <div id="travelsContent" class="tab-content">
+                <div class="content-header">
+                    <h2 class="content-title">旅行见闻</h2>
+                    <button class="add-btn" onclick="openTravelModal()">
+                        <span>+</span>
+                    </button>
+                </div>
+                <div class="records-list" id="travelsList">
+                    <!-- 旅行记录将动态添加到这里 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 书籍详情页 -->
+    <div id="bookDetailPage" class="page">
+        <div class="detail-container">
+            <button class="back-btn" onclick="goBack()">← 返回</button>
+            <div class="detail-content" id="bookDetailContent">
+                <!-- 书籍详情将动态添加到这里 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 电影详情页 -->
+    <div id="movieDetailPage" class="page">
+        <div class="detail-container">
+            <button class="back-btn" onclick="goBack()">← 返回</button>
+            <div class="detail-content" id="movieDetailContent">
+                <!-- 电影详情将动态添加到这里 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 旅行见闻详情页 -->
+    <div id="travelDetailPage" class="page">
+        <div class="detail-container">
+            <button class="back-btn" onclick="goBack()">← 返回</button>
+            <div class="detail-content" id="travelDetailContent">
+                <!-- 旅行见闻详情将动态添加到这里 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 书籍添加/编辑模态框 -->
+    <div id="bookModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBookModal()">&times;</span>
+            <h2 id="bookModalTitle">添加书籍</h2>
+            <form id="bookForm" onsubmit="saveBook(event)">
+                <input type="hidden" id="bookId" value="">
+                <div class="form-group">
+                    <label for="bookTitle">书名 *</label>
+                    <input type="text" id="bookTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="bookAuthor">作者 *</label>
+                    <input type="text" id="bookAuthor" required>
+                </div>
+                <div class="form-group">
+                    <label for="bookDate">阅读日期</label>
+                    <input type="date" id="bookDate">
+                </div>
+                <div class="form-group">
+                    <label for="bookRating">评分 (1-5)</label>
+                    <input type="number" id="bookRating" min="1" max="5" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label for="bookNotes">读书笔记</label>
+                    <textarea id="bookNotes" rows="8" placeholder="可以写很长的文字..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="bookImage">书籍封面</label>
+                    <input type="file" id="bookImage" accept="image/*" onchange="handleImageUpload('bookImage', 'bookImagePreview')">
+                    <div id="bookImagePreview" class="image-preview"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeBookModal()">取消</button>
+                    <button type="submit" class="btn-submit">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 电影添加/编辑模态框 -->
+    <div id="movieModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMovieModal()">&times;</span>
+            <h2 id="movieModalTitle">添加电影</h2>
+            <form id="movieForm" onsubmit="saveMovie(event)">
+                <input type="hidden" id="movieId" value="">
+                <div class="form-group">
+                    <label for="movieTitle">电影名称 *</label>
+                    <input type="text" id="movieTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="movieDirector">导演</label>
+                    <input type="text" id="movieDirector">
+                </div>
+                <div class="form-group">
+                    <label for="movieDate">观看日期</label>
+                    <input type="date" id="movieDate">
+                </div>
+                <div class="form-group">
+                    <label for="movieRating">评分 (1-5)</label>
+                    <input type="number" id="movieRating" min="1" max="5" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label for="movieNotes">观影感想</label>
+                    <textarea id="movieNotes" rows="8" placeholder="可以写很长的文字..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="movieImage">电影海报</label>
+                    <input type="file" id="movieImage" accept="image/*" onchange="handleImageUpload('movieImage', 'movieImagePreview')">
+                    <div id="movieImagePreview" class="image-preview"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeMovieModal()">取消</button>
+                    <button type="submit" class="btn-submit">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 旅行见闻添加/编辑模态框 -->
+    <div id="travelModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTravelModal()">&times;</span>
+            <h2 id="travelModalTitle">添加旅行见闻</h2>
+            <form id="travelForm" onsubmit="saveTravel(event)">
+                <input type="hidden" id="travelId" value="">
+                <div class="form-group">
+                    <label for="travelTitle">标题 *</label>
+                    <input type="text" id="travelTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="travelLocation">地点</label>
+                    <input type="text" id="travelLocation">
+                </div>
+                <div class="form-group">
+                    <label for="travelDate">旅行日期</label>
+                    <input type="date" id="travelDate">
+                </div>
+                <div class="form-group">
+                    <label for="travelImage">旅行照片</label>
+                    <input type="file" id="travelImage" accept="image/*" onchange="handleImageUpload('travelImage', 'travelImagePreview')">
+                    <div id="travelImagePreview" class="image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label for="travelNotes">旅行见闻</label>
+                    <textarea id="travelNotes" rows="8" placeholder="可以写很长的文字..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeTravelModal()">取消</button>
+                    <button type="submit" class="btn-submit">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
