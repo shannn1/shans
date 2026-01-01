@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shan's</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -30,6 +31,10 @@
                 <button class="tab-btn" data-tab="travels" onclick="switchTab('travels')">
                     <span class="tab-icon">✈️</span>
                     <span class="tab-text">旅行见闻</span>
+                </button>
+                <button class="tab-btn" data-tab="products" onclick="switchTab('products')">
+                    <span class="tab-icon">🛍️</span>
+                    <span class="tab-text">产品记录</span>
                 </button>
             </nav>
 
@@ -71,6 +76,19 @@
                     <!-- 旅行记录将动态添加到这里 -->
                 </div>
             </div>
+
+            <!-- 产品记录内容 -->
+            <div id="productsContent" class="tab-content">
+                <div class="content-header">
+                    <h2 class="content-title">产品记录</h2>
+                    <button class="add-btn" onclick="openProductModal()">
+                        <span>+</span>
+                    </button>
+                </div>
+                <div class="records-list" id="productsList">
+                    <!-- 产品记录将动态添加到这里 -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -100,6 +118,16 @@
             <button class="back-btn" onclick="goBack()">← 返回</button>
             <div class="detail-content" id="travelDetailContent">
                 <!-- 旅行见闻详情将动态添加到这里 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 产品详情页 -->
+    <div id="productDetailPage" class="page">
+        <div class="detail-container">
+            <button class="back-btn" onclick="goBack()">← 返回</button>
+            <div class="detail-content" id="productDetailContent">
+                <!-- 产品详情将动态添加到这里 -->
             </div>
         </div>
     </div>
@@ -220,6 +248,55 @@
         </div>
     </div>
 
+    <!-- 产品添加/编辑模态框 -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeProductModal()">&times;</span>
+            <h2 id="productModalTitle">添加产品</h2>
+            <form id="productForm" onsubmit="saveProduct(event)">
+                <input type="hidden" id="productId" value="">
+                <div class="form-group">
+                    <label for="productName">产品名称 *</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label for="productBrand">品牌</label>
+                    <input type="text" id="productBrand">
+                </div>
+                <div class="form-group">
+                    <label for="productCategory">类别</label>
+                    <input type="text" id="productCategory" placeholder="如：电子产品、服装、书籍等">
+                </div>
+                <div class="form-group">
+                    <label for="productDate">购买/使用日期</label>
+                    <input type="date" id="productDate">
+                </div>
+                <div class="form-group">
+                    <label for="productPrice">价格</label>
+                    <input type="number" id="productPrice" step="0.01" placeholder="元">
+                </div>
+                <div class="form-group">
+                    <label for="productRating">评分 (1-5)</label>
+                    <input type="number" id="productRating" min="1" max="5" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label for="productImage">产品图片</label>
+                    <input type="file" id="productImage" accept="image/*" onchange="handleImageUpload('productImage', 'productImagePreview')">
+                    <div id="productImagePreview" class="image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label for="productNotes">使用体验</label>
+                    <textarea id="productNotes" rows="8" placeholder="可以写很长的文字..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeProductModal()">取消</button>
+                    <button type="submit" class="btn-submit">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

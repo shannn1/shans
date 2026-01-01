@@ -2,6 +2,7 @@
 const BOOKS_KEY = 'myBooks';
 const MOVIES_KEY = 'myMovies';
 const TRAVELS_KEY = 'myTravels';
+const PRODUCTS_KEY = 'myProducts';
 
 // 当前页面状态
 let currentPage = 'home';
@@ -11,14 +12,20 @@ let currentTab = 'books';
 let imagePreviewData = {
     bookImage: null,
     movieImage: null,
-    travelImage: null
+    travelImage: null,
+    productImage: null
 };
+
+// 地图实例
+let travelMap = null;
+let travelMarkers = [];
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
     loadBooks();
     loadMovies();
     loadTravels();
+    loadProducts();
 });
 
 // ========== 页面导航 ==========
@@ -44,6 +51,8 @@ function switchTab(tab) {
         document.getElementById('moviesContent').classList.add('active');
     } else if (tab === 'travels') {
         document.getElementById('travelsContent').classList.add('active');
+    } else if (tab === 'products') {
+        document.getElementById('productsContent').classList.add('active');
     }
 }
 
@@ -492,6 +501,7 @@ function showTravelDetail(index) {
     const location = travel.location ? `<div class="detail-meta">📍 ${escapeHtml(travel.location)}</div>` : '';
     const notes = travel.notes ? `<div class="detail-notes">${escapeHtml(travel.notes)}</div>` : '<div class="detail-notes" style="color: var(--text-muted);">暂无旅行见闻</div>';
     const image = travel.image ? `<img src="${travel.image}" alt="${escapeHtml(travel.title)}" class="detail-image">` : '';
+    const markers = travel.markers || [];
     
     const detailHTML = `
         ${image}
@@ -499,6 +509,14 @@ function showTravelDetail(index) {
         ${location}
         <div class="detail-date">旅行日期：${date}</div>
         ${notes}
+        <div class="travel-map-container">
+            <div class="map-controls">
+                <button class="map-btn" id="addMarkerBtn" onclick="enableMarkerMode(${index})">📍 添加足迹</button>
+                <button class="map-btn" id="viewModeBtn" onclick="disableMarkerMode()" style="display:none;">👁️ 查看模式</button>
+            </div>
+            <div id="travelMap" style="width: 100%; height: 500px;"></div>
+            <div class="map-markers-list" id="markersList"></div>
+        </div>
         <div class="detail-actions">
             <button class="btn-action" onclick="editTravel(${index}); goBack();">编辑</button>
             <button class="btn-action" onclick="deleteTravel(${index}); goBack();">删除</button>
@@ -507,6 +525,9 @@ function showTravelDetail(index) {
     
     document.getElementById('travelDetailContent').innerHTML = detailHTML;
     showPage('travelDetailPage');
+    
+    // 初始化地图
+    initTravelMap(index, markers);
 }
 
 // 获取所有旅行见闻
@@ -572,12 +593,16 @@ function saveTravel(event) {
     
     const travels = getTravels();
     const id = document.getElementById('travelId').value;
+    const travels = getTravels();
+    const existingTravel = id !== '' ? travels[parseInt(id)] : null;
+    
     const travel = {
         title: document.getElementById('travelTitle').value.trim(),
         location: document.getElementById('travelLocation').value.trim(),
         date: document.getElementById('travelDate').value,
         notes: document.getElementById('travelNotes').value.trim(),
-        image: imagePreviewData.travelImage || null
+        image: imagePreviewData.travelImage || null,
+        markers: existingTravel && existingTravel.markers ? existingTravel.markers : []
     };
     
     if (id === '') {
@@ -650,6 +675,8 @@ function handleImageUpload(inputId, previewId) {
             imagePreviewData.movieImage = base64;
         } else if (inputId === 'travelImage') {
             imagePreviewData.travelImage = base64;
+        } else if (inputId === 'productImage') {
+            imagePreviewData.productImage = base64;
         }
         
         showImagePreview(previewId, base64, inputId);
@@ -678,6 +705,8 @@ function removeImage(previewId, inputId) {
         imagePreviewData.movieImage = null;
     } else if (inputId === 'travelImage') {
         imagePreviewData.travelImage = null;
+    } else if (inputId === 'productImage') {
+        imagePreviewData.productImage = null;
     }
 }
 
@@ -696,11 +725,370 @@ function truncateText(text, maxLength) {
     return text.substring(0, maxLength) + '...';
 }
 
+// ========== 地图功能 ==========
+
+let currentTravelIndex = null;
+let markerMode = false;
+
+// 初始化旅行地图
+function initTravelMap(travelIndex, markers) {
+    currentTravelIndex = travelIndex;
+    
+    // 如果地图已存在，先移除
+    if (travelMap) {
+        travelMap.remove();
+    }
+    
+    // 创建地图
+    travelMap = L.map('travelMap').setView([30, 120], 3);
+    
+    // 添加地图图层（使用深色主题）
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(travelMap);
+    
+    // 清除之前的标记
+    travelMarkers = [];
+    
+    // 添加已有标记
+    if (markers && markers.length > 0) {
+        markers.forEach((marker, idx) => {
+            addMarkerToMap(marker.lat, marker.lng, marker.name || `位置 ${idx + 1}`, idx);
+        });
+        
+        // 如果只有一个标记，缩放到该位置；如果有多个，显示所有标记
+        if (markers.length === 1) {
+            travelMap.setView([markers[0].lat, markers[0].lng], 8);
+        } else {
+            const group = new L.featureGroup(travelMarkers);
+            travelMap.fitBounds(group.getBounds().pad(0.1));
+        }
+    }
+    
+    // 更新标记列表
+    updateMarkersList();
+}
+
+// 启用标记模式
+function enableMarkerMode(travelIndex) {
+    markerMode = true;
+    currentTravelIndex = travelIndex;
+    
+    document.getElementById('addMarkerBtn').style.display = 'none';
+    document.getElementById('viewModeBtn').style.display = 'inline-block';
+    
+    // 添加点击事件
+    travelMap.on('click', onMapClick);
+    travelMap.getContainer().style.cursor = 'crosshair';
+}
+
+// 禁用标记模式
+function disableMarkerMode() {
+    markerMode = false;
+    
+    document.getElementById('addMarkerBtn').style.display = 'inline-block';
+    document.getElementById('viewModeBtn').style.display = 'none';
+    
+    // 移除点击事件
+    travelMap.off('click', onMapClick);
+    travelMap.getContainer().style.cursor = '';
+}
+
+// 地图点击事件
+function onMapClick(e) {
+    if (!markerMode) return;
+    
+    const name = prompt('请输入这个位置的名称：', '');
+    if (name === null) return; // 用户取消
+    
+    const markerName = name.trim() || `位置 ${travelMarkers.length + 1}`;
+    addMarkerToMap(e.latlng.lat, e.latlng.lng, markerName, travelMarkers.length);
+    saveMarkersToTravel();
+}
+
+// 添加标记到地图
+function addMarkerToMap(lat, lng, name, index) {
+    const marker = L.marker([lat, lng], {
+        icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        })
+    }).addTo(travelMap);
+    
+    marker.bindPopup(`<b>${escapeHtml(name)}</b><br>${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    
+    travelMarkers.push({
+        marker: marker,
+        lat: lat,
+        lng: lng,
+        name: name,
+        index: index
+    });
+    
+    updateMarkersList();
+}
+
+// 更新标记列表
+function updateMarkersList() {
+    const list = document.getElementById('markersList');
+    if (!list) return;
+    
+    if (travelMarkers.length === 0) {
+        list.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">还没有添加任何足迹，点击"添加足迹"按钮开始标记吧！</div>';
+        return;
+    }
+    
+    list.innerHTML = travelMarkers.map((item, idx) => `
+        <div class="map-marker-item">
+            <div class="map-marker-info">
+                <div class="map-marker-name">📍 ${escapeHtml(item.name)}</div>
+                <div class="map-marker-coords">${item.lat.toFixed(4)}, ${item.lng.toFixed(4)}</div>
+            </div>
+            <button class="map-marker-remove" onclick="removeMarker(${idx})" title="删除">×</button>
+        </div>
+    `).join('');
+}
+
+// 删除标记
+function removeMarker(index) {
+    if (confirm('确定要删除这个足迹吗？')) {
+        const item = travelMarkers[index];
+        travelMap.removeLayer(item.marker);
+        travelMarkers.splice(index, 1);
+        updateMarkersList();
+        saveMarkersToTravel();
+    }
+}
+
+// 保存标记到旅行记录
+function saveMarkersToTravel() {
+    if (currentTravelIndex === null) return;
+    
+    const travels = getTravels();
+    const travel = travels[currentTravelIndex];
+    
+    if (!travel) return;
+    
+    travel.markers = travelMarkers.map(item => ({
+        lat: item.lat,
+        lng: item.lng,
+        name: item.name
+    }));
+    
+    saveTravels(travels);
+}
+
+// ========== 产品记录管理 ==========
+
+// 加载产品
+function loadProducts() {
+    const products = getProducts();
+    const list = document.getElementById('productsList');
+    
+    if (products.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🛍️</div>
+                <div class="empty-state-text">还没有添加任何产品<br>点击右上角按钮开始记录吧</div>
+            </div>
+        `;
+        return;
+    }
+    
+    list.innerHTML = products.map((product, index) => createProductItem(product, index)).join('');
+}
+
+// 创建产品列表项
+function createProductItem(product, index) {
+    const date = product.date ? new Date(product.date).toLocaleDateString('zh-CN') : '未记录';
+    const brand = product.brand ? `<div class="record-item-meta">品牌：${escapeHtml(product.brand)}</div>` : '';
+    const category = product.category ? `<div class="record-item-meta">类别：${escapeHtml(product.category)}</div>` : '';
+    const price = product.price ? `<div class="record-item-meta">价格：¥${parseFloat(product.price).toFixed(2)}</div>` : '';
+    const rating = product.rating ? `⭐ ${product.rating}` : '';
+    const preview = product.notes ? truncateText(product.notes, 100) : '';
+    const image = product.image ? `<img src="${product.image}" alt="${escapeHtml(product.name)}" class="record-item-image">` : '';
+    
+    return `
+        <div class="record-item" onclick="showProductDetail(${index})">
+            ${image}
+            <div class="record-item-header">
+                <div>
+                    <div class="record-item-title">${escapeHtml(product.name)}</div>
+                    ${brand}
+                    ${category}
+                    ${price}
+                </div>
+            </div>
+            <div class="record-item-date">${date}</div>
+            ${rating ? `<div class="record-item-rating">${rating}</div>` : ''}
+            ${preview ? `<div class="record-item-preview">${escapeHtml(preview)}</div>` : ''}
+            <div class="record-item-actions" onclick="event.stopPropagation()">
+                <button class="btn-action" onclick="editProduct(${index})">编辑</button>
+                <button class="btn-action" onclick="deleteProduct(${index})">删除</button>
+            </div>
+        </div>
+    `;
+}
+
+// 显示产品详情
+function showProductDetail(index) {
+    const products = getProducts();
+    const product = products[index];
+    
+    if (!product) return;
+    
+    const date = product.date ? new Date(product.date).toLocaleDateString('zh-CN') : '未记录';
+    const brand = product.brand ? `<div class="detail-meta">品牌：${escapeHtml(product.brand)}</div>` : '';
+    const category = product.category ? `<div class="detail-meta">类别：${escapeHtml(product.category)}</div>` : '';
+    const price = product.price ? `<div class="detail-meta">价格：¥${parseFloat(product.price).toFixed(2)}</div>` : '';
+    const rating = product.rating ? `<div class="detail-rating">⭐ ${product.rating}</div>` : '';
+    const notes = product.notes ? `<div class="detail-notes">${escapeHtml(product.notes)}</div>` : '<div class="detail-notes" style="color: var(--text-muted);">暂无使用体验</div>';
+    const image = product.image ? `<img src="${product.image}" alt="${escapeHtml(product.name)}" class="detail-image">` : '';
+    
+    const detailHTML = `
+        ${image}
+        <h1 class="detail-title">${escapeHtml(product.name)}</h1>
+        ${brand}
+        ${category}
+        ${price}
+        <div class="detail-date">购买/使用日期：${date}</div>
+        ${rating}
+        ${notes}
+        <div class="detail-actions">
+            <button class="btn-action" onclick="editProduct(${index}); goBack();">编辑</button>
+            <button class="btn-action" onclick="deleteProduct(${index}); goBack();">删除</button>
+        </div>
+    `;
+    
+    document.getElementById('productDetailContent').innerHTML = detailHTML;
+    showPage('productDetailPage');
+}
+
+// 获取所有产品
+function getProducts() {
+    const products = localStorage.getItem(PRODUCTS_KEY);
+    return products ? JSON.parse(products) : [];
+}
+
+// 保存产品
+function saveProducts(products) {
+    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+}
+
+// 打开产品模态框
+function openProductModal(index = null) {
+    const modal = document.getElementById('productModal');
+    const form = document.getElementById('productForm');
+    const title = document.getElementById('productModalTitle');
+    
+    // 重置图片预览
+    imagePreviewData.productImage = null;
+    document.getElementById('productImagePreview').innerHTML = '';
+    document.getElementById('productImage').value = '';
+    
+    if (index !== null) {
+        // 编辑模式
+        const products = getProducts();
+        const product = products[index];
+        title.textContent = '编辑产品';
+        document.getElementById('productId').value = index;
+        document.getElementById('productName').value = product.name;
+        document.getElementById('productBrand').value = product.brand || '';
+        document.getElementById('productCategory').value = product.category || '';
+        document.getElementById('productDate').value = product.date || '';
+        document.getElementById('productPrice').value = product.price || '';
+        document.getElementById('productRating').value = product.rating || '';
+        document.getElementById('productNotes').value = product.notes || '';
+        
+        // 显示已有图片
+        if (product.image) {
+            imagePreviewData.productImage = product.image;
+            showImagePreview('productImagePreview', product.image, 'productImage');
+        }
+    } else {
+        // 添加模式
+        title.textContent = '添加产品';
+        form.reset();
+        document.getElementById('productId').value = '';
+    }
+    
+    modal.classList.add('show');
+}
+
+// 关闭产品模态框
+function closeProductModal() {
+    const modal = document.getElementById('productModal');
+    modal.classList.remove('show');
+    document.getElementById('productForm').reset();
+    imagePreviewData.productImage = null;
+    document.getElementById('productImagePreview').innerHTML = '';
+}
+
+// 保存产品（表单提交）
+function saveProduct(event) {
+    event.preventDefault();
+    
+    const products = getProducts();
+    const id = document.getElementById('productId').value;
+    const product = {
+        name: document.getElementById('productName').value.trim(),
+        brand: document.getElementById('productBrand').value.trim(),
+        category: document.getElementById('productCategory').value.trim(),
+        date: document.getElementById('productDate').value,
+        price: document.getElementById('productPrice').value ? parseFloat(document.getElementById('productPrice').value) : null,
+        rating: document.getElementById('productRating').value ? parseFloat(document.getElementById('productRating').value) : null,
+        notes: document.getElementById('productNotes').value.trim(),
+        image: imagePreviewData.productImage || null
+    };
+    
+    if (id === '') {
+        // 添加新产品
+        products.push(product);
+    } else {
+        // 更新现有产品（保留原有图片如果没有新图片）
+        if (!imagePreviewData.productImage && products[parseInt(id)].image) {
+            product.image = products[parseInt(id)].image;
+        }
+        products[parseInt(id)] = product;
+    }
+    
+    saveProducts(products);
+    loadProducts();
+    closeProductModal();
+}
+
+// 编辑产品
+function editProduct(index) {
+    openProductModal(index);
+}
+
+// 删除产品
+function deleteProduct(index) {
+    if (confirm('确定要删除这个产品吗？')) {
+        const products = getProducts();
+        products.splice(index, 1);
+        saveProducts(products);
+        loadProducts();
+        
+        // 如果当前在详情页，返回首页
+        if (currentPage === 'productDetailPage') {
+            goBack();
+        }
+    }
+}
+
 // 点击模态框外部关闭
 window.onclick = function(event) {
     const bookModal = document.getElementById('bookModal');
     const movieModal = document.getElementById('movieModal');
     const travelModal = document.getElementById('travelModal');
+    const productModal = document.getElementById('productModal');
     
     if (event.target === bookModal) {
         closeBookModal();
@@ -710,5 +1098,8 @@ window.onclick = function(event) {
     }
     if (event.target === travelModal) {
         closeTravelModal();
+    }
+    if (event.target === productModal) {
+        closeProductModal();
     }
 }
