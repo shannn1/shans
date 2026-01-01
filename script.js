@@ -593,7 +593,6 @@ function saveTravel(event) {
     
     const travels = getTravels();
     const id = document.getElementById('travelId').value;
-    const travels = getTravels();
     const existingTravel = id !== '' ? travels[parseInt(id)] : null;
     
     const travel = {
